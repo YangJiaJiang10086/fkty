@@ -40,6 +40,8 @@
 
         // 初始化游戏
         function initGame() {
+            dx = config.gridSize; 
+            dy = 0; 
             // 初始化蛇（水平居中）
             snake = [];
             const startX = Math.floor(canvas.width/(2*config.gridSize)) * config.gridSize;
