@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>重力潜水艇-高级版</title>
+    <style>
+        canvas { border: 2px solid black; background: #006994; }
+        body { display: flex; flex-direction: column; align-items: center; }
+    </style>
+</head>
+<body>
+    <div id="score">按上方向键爬升：得分: 0</div>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <button id="restart" style="display: none;">重新开始</button>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreElement = document.getElementById('score');
+const restartButton = document.getElementById('restart');
+
+// 游戏配置
+const CONFIG = {
+    OBSTACLE_GAP: 50,    // 障碍物最小垂直间隔
+    MAX_ATTEMPTS: 50      // 生成障碍物的最大尝试次数
+};
+
+const game = {
+    player: {
+        x: 100,
+        y: 200,
+        width: 40,
+        height: 20,
+        velocity: 0,
+        gravity: 0.1,
+        lift: -3
+    },
+    obstacles: [],
+    score: 0,
+    isGameOver: false,
+    scrollSpeed: 2
+};
+
+const keys = { ArrowUp: false };
+
+// 事件监听
+document.addEventListener('keydown', e => { if (e.key === 'ArrowUp') keys.ArrowUp = true; });
+document.addEventListener('keyup', e => { if (e.key === 'ArrowUp') keys.ArrowUp = false; });
+restartButton.addEventListener('click', initGame);
+
+// 生成非重叠障碍物
+function createSafeObstacle() {
+    let newObstacle, isValid;
+    let attempts = 0;
+
+    do {
+        newObstacle = {
+            x: canvas.width,
+            y: Math.random() * (canvas.height - 60),
+            width: 30,
+            height: 60
+        };
+        
+        // 检查与现有障碍物的间隔
+        isValid = game.obstacles.every(obs => 
+            Math.abs(newObstacle.y - obs.y) > CONFIG.OBSTACLE_GAP
+        );
+        
+        attempts++;
+    } while (!isValid && attempts < CONFIG.MAX_ATTEMPTS);
+
+    return isValid ? newObstacle : null;
+}
+
+function checkCollision(rect1, rect2) {
+    return rect1.x < rect2.x + rect2.width &&
+           rect1.x + rect1.width > rect2.x &&
+           rect1.y < rect2.y + rect2.height &&
+           rect1.y + rect1.height > rect2.y;
+}
+
+// 边界碰撞检测
+function checkBoundaryCollision() {
+    return game.player.y < 0 || 
+           game.player.y + game.player.height > canvas.height;
+}
+
+function initGame() {
+    game.player.y = 200;
+    game.player.velocity = 0;
+    game.obstacles = [];
+    game.score = 0;
+    game.isGameOver = false;
+    restartButton.style.display = 'none';
+    scoreElement.textContent = `按 ↑ 方向键 爬升 | 得分: ${game.score}`;
+    requestAnimationFrame(gameLoop);
+}
+
+function gameLoop() {
+    if (game.isGameOver) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 玩家物理运动
+    if (keys.ArrowUp) game.player.velocity = game.player.lift;
+    else game.player.velocity += game.player.gravity;
+    game.player.y += game.player.velocity;
+
+    // 边界碰撞检测
+    if (checkBoundaryCollision()) {
+        game.isGameOver = true;
+        restartButton.style.display = 'block';
+    }
+
+    // 生成新障碍物（确保不重叠）
+    if (Math.random() < 0.02) {
+        const newObstacle = createSafeObstacle();
+        if (newObstacle) game.obstacles.push(newObstacle);
+    }
+
+    // 更新障碍物状态
+    game.obstacles.forEach(obs => {
+        obs.x -= game.scrollSpeed;
+        if (checkCollision(game.player, obs)) {
+            game.isGameOver = true;
+            restartButton.style.display = 'block';
+        }
+    });
+
+    // 移除屏幕外障碍物
+    game.obstacles = game.obstacles.filter(obs => {
+        if (obs.x + obs.width < 0) {
+            game.score += 10;
+            scoreElement.textContent = `按 ↑ 方向键 爬升 | 得分: ${game.score}`;
+            return false;
+        }
+        return true;
+    });
+
+    // 绘制游戏元素
+    ctx.fillStyle = game.isGameOver ? 'red' : '#3CB371';
+    ctx.fillRect(game.player.x, game.player.y, game.player.width, game.player.height);
+
+    ctx.fillStyle = '#8B4513';
+    game.obstacles.forEach(obs => {
+        ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+    });
+
+    requestAnimationFrame(gameLoop);
+}
+
+initGame();
+</script>
+</body>
+</html>
